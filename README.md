@@ -50,9 +50,10 @@ In this file we'll specify some settings for our HTTP-calls.
 ```ocaml
 module Config = {
   let baseUrl = "https://your_graphql_api_endpoint.com/";
+  let headers = [];
 };
 
-include ReveryGraphqlHooks.Make(Config);
+module Graphql = ReveryGraphqlHooks.Make(Config);
 ```
 
 **NOTE:** For Revery to handle Promises we need to start the event loop. Add the following line, prior to calling `UI.start`.
