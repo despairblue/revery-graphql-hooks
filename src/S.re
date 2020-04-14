@@ -1,7 +1,9 @@
-module type BaseConfig = {
-  let baseUrl: string;
-  let headers: list((string, string));
+type config = {
+  baseUrl: string,
+  headers: list((string, string)),
 };
+
+module type BaseConfig = {let config: config;};
 
 module type MutationConfig = {
   let query: string;

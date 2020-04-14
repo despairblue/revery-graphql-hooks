@@ -24,15 +24,21 @@ module type Mutation = {
         'b,
       )
     ) =>
-    (((~variables: Yojson.Basic.t, unit) => unit, status), Hooks.t('a, 'b));
+    (
+      (
+        (~config: S.config=?, ~variables: Yojson.Basic.t, unit) => unit,
+        status,
+      ),
+      Hooks.t('a, 'b),
+    );
 };
 
 module Make =
        (C: BaseConfig, G: MutationConfig)
        : (Mutation with type t = G.t) => {
+  let baseConfig = C.config;
+
   type t = G.t;
-  let baseUrl = C.baseUrl;
-  let headers = C.headers;
 
   type status =
     | Idle
@@ -87,7 +93,9 @@ module Make =
         },
       );
 
-    let makeRequest = (~variables) => {
+    let makeRequest =
+        (~config: option(S.config)=?, ~variables: Yojson.Basic.t) => {
+      let mergedConfig = Option.value(config, ~default=baseConfig);
       let requestBody =
         `Assoc([("query", `String(G.query)), ("variables", variables)])
         |> Yojson.Basic.to_string;
@@ -97,8 +105,11 @@ module Make =
       Fetch.(
         post(
           ~body=requestBody,
-          ~headers=[("Content-Type", "application/json"), ...headers],
-          baseUrl,
+          ~headers=[
+            ("Content-Type", "application/json"),
+            ...mergedConfig.headers,
+          ],
+          mergedConfig.baseUrl,
         )
         |> Lwt.map(
              fun
@@ -118,10 +129,10 @@ module Make =
       |> ignore;
     };
 
-    let mutation = (~variables, ()) => {
+    let mutation = (~config: option(S.config)=?, ~variables, ()) => {
       setVariables(_prevVariables => variables);
 
-      makeRequest(~variables);
+      makeRequest(~config?, ~variables);
     };
 
     (mutation, state);

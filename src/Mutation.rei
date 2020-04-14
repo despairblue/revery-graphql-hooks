@@ -24,7 +24,13 @@ module type Mutation = {
         'b,
       )
     ) =>
-    (((~variables: Yojson.Basic.t, unit) => unit, status), Hooks.t('a, 'b));
+    (
+      (
+        (~config: S.config=?, ~variables: Yojson.Basic.t, unit) => unit,
+        status,
+      ),
+      Hooks.t('a, 'b),
+    );
 };
 
 module Make:

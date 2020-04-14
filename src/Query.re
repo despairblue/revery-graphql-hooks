@@ -13,6 +13,7 @@ module type Query = {
 
   let use:
     (
+      ~config: S.config=?,
       ~variables: Yojson.Basic.t=?,
       unit,
       Hooks.t(
@@ -30,8 +31,7 @@ module type Query = {
 
 module Make = (C: BaseConfig, G: QueryConfig) : (Query with type t = G.t) => {
   type t = G.t;
-  let baseUrl = C.baseUrl;
-  let headers = C.headers;
+  let baseConfig = C.config;
 
   type status =
     | Idle
@@ -44,17 +44,31 @@ module Make = (C: BaseConfig, G: QueryConfig) : (Query with type t = G.t) => {
     | Error
     | Data(G.t);
 
-  let reducer = (action, _state): status =>
+  let stringOfAction =
+    fun
+    | Fetch => "Fetch"
+    | Error => "Error"
+    | Data(_) => "Data";
+
+  let reducer = (action, _state): status => {
+    Printf.printf("dispatched: %s\n%!", stringOfAction(action));
     switch (action) {
     | Fetch => Loading
     | Error => Error
     | Data(obj) => Data(obj)
     };
+  };
 
   let initialState: status = Idle;
 
-  let use = (~variables: option(Yojson.Basic.t)=?, ()) => {
+  let use =
+      (
+        ~config: option(S.config)=?,
+        ~variables: option(Yojson.Basic.t)=?,
+        (),
+      ) => {
     let%hook (state, dispatch) = Hooks.reducer(~initialState, reducer);
+    let mergedConfig = Option.value(config, ~default=baseConfig);
 
     let query = () => {
       let variables =
@@ -70,15 +84,34 @@ module Make = (C: BaseConfig, G: QueryConfig) : (Query with type t = G.t) => {
       (query, variables);
     };
 
+    let tap = (~l=?, ~f=ignore, x) => {
+      Option.iter(l => Printf.printf("%s: ", l), l);
+      f(x);
+      Printf.printf("\n%!");
+      x;
+    };
+
     let subscribeToStore = query =>
       Store.subscribe(
         ~query,
         graphqlJson => {
           let data =
-            graphqlJson
-            |> Yojson.Basic.from_string
-            |> Yojson.Basic.Util.member("data")
-            |> G.parse;
+            try(
+              graphqlJson
+              |> tap(~l="graphqlJson", ~f=ignore)
+              |> Yojson.Basic.from_string
+              |> tap(~l="fromString", ~f=ignore)
+              |> Yojson.Basic.Util.member("data")
+              |> tap(~l="member", ~f=ignore)
+              |> tap(~l="data", ~f=data =>
+                   Printf.printf("%s", Yojson.Basic.to_string(data))
+                 )
+              |> G.parse
+            ) {
+            | firstException =>
+              Printf.printf("This Crashed\n%!");
+              raise(Not_found);
+            };
 
           dispatch(Data(data));
         },
@@ -87,26 +120,33 @@ module Make = (C: BaseConfig, G: QueryConfig) : (Query with type t = G.t) => {
     let executeRequest = (query, variables) => {
       dispatch(Fetch);
 
+      Printf.printf("Fetching\n%!");
       Fetch.(
         post(
           ~body=query,
-          ~headers=[("Content-Type", "application/json"), ...headers],
-          baseUrl,
+          ~headers=[
+            ("Content-Type", "application/json"),
+            ...mergedConfig.headers,
+          ],
+          mergedConfig.baseUrl,
         )
-        |> Lwt.map(
-             fun
-             | Ok({Response.body, _}) => {
-                 let query =
-                   `Assoc([
-                     ("query", `String(G.query)),
-                     ("variables", variables),
-                   ])
-                   |> Yojson.Basic.to_string;
+        |> Lwt.map(result => {
+             Printf.printf("Got result\n%!");
 
-                 Store.publish(~query, Body.toString(body));
-               }
-             | _ => dispatch(Error),
-           )
+             switch (result) {
+             | Ok({Response.body, _}) =>
+               let query =
+                 `Assoc([
+                   ("query", `String(G.query)),
+                   ("variables", variables),
+                 ])
+                 |> Yojson.Basic.to_string;
+
+               Printf.printf("%s\n%!", Body.toString(body));
+               Store.publish(~query, Body.toString(body));
+             | _ => dispatch(Error)
+             };
+           })
       )
       |> ignore;
     };

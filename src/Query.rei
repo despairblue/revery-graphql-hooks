@@ -13,6 +13,7 @@ module type Query = {
 
   let use:
     (
+      ~config: S.config=?,
       ~variables: Yojson.Basic.t=?,
       unit,
       Hooks.t(
