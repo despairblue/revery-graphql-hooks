@@ -7,6 +7,7 @@
     "buildDev": "refmterr dune build -p revery-graphql-hooks"
   },
   "scripts": {
+    "dev:watch": "watchman-make -p '**/*.re' --run 'esy build'",
     "format": "esy dune build @fmt --auto-promote"
   },
   "dependencies": {

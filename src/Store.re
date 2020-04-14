@@ -4,6 +4,7 @@ let subscribers = Hashtbl.create(128);
 let state = initialState;
 
 let subscribe = (~query: string, subscriberCallback: string => unit) => {
+  Printf.printf("Subscribe to %s\n%!", query);
   switch (Hashtbl.find_opt(subscribers, query)) {
   | Some(subscriberCallbacks) =>
     Hashtbl.replace(
@@ -38,6 +39,6 @@ let publish = (~query: string, value: string) => {
   | Some(subscriberCallbacks) =>
     subscriberCallbacks
     |> List.iter(subscriberCallback => subscriberCallback(value))
-  | None => ()
+  | None => Printf.printf("Found no subscribers for %s\n%!", query)
   };
 };

@@ -51,7 +51,6 @@ module Make = (C: BaseConfig, G: QueryConfig) : (Query with type t = G.t) => {
     | Data(_) => "Data";
 
   let reducer = (action, _state): status => {
-    Printf.printf("dispatched: %s\n%!", stringOfAction(action));
     switch (action) {
     | Fetch => Loading
     | Error => Error
