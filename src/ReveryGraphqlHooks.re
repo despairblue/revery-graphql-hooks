@@ -8,4 +8,6 @@ module Make = (C: BaseConfig) => {
   module Mutation = {
     module Make = Mutation.Make(C);
   };
+
+  let newQuery = NewQuery.use;
 };
