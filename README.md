@@ -53,7 +53,7 @@ module Config = {
   let headers = [];
 };
 
-module Graphql = ReveryGraphqlHooks.Make(Config);
+include ReveryGraphqlHooks.Make(Config)
 ```
 
 **NOTE:** For Revery to handle Promises we need to start the event loop. Add the following line, prior to calling `UI.start`.
